@@ -200,7 +200,8 @@ class Game:  # Main class
             yield (True, True,leader) #yes, the hand ends, yes there's a winner, and it is leader
         else:
             #otherwise, another hand is needed.
-            yield (True, False, leader) #The hand is over, but a winner is not decided. Play next hand.
+            yield (True, False, leader, #The hand is over, but a winner is not decided. Play next hand.
+                   self.players[0].score,self.players[1].score,self.players[2].score) #return everyone's score.
             
     def play(self): #don't use if yield players are in play!
         lead_player = 0
