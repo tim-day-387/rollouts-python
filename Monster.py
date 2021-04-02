@@ -253,7 +253,7 @@ class Game:  # Main class
             except StopIteration:
                 print("Didn't stop successfully.")
             if result[1]==True: # if the hand had someone win,
-                return # then we're done.
+                return result[2] # then we're done.
             # otherwise...
             self.slp("\n* Deal a new hand! *\n")
             # reset the zombie count
@@ -480,4 +480,4 @@ playahs.append(GrabAndDuckPlayer("AI")) # Change this one for testing different 
 playahs.append(GrabAndDuckPlayer("Bar"))
 theGame = Game(playahs)
 
-theGame.play()
+print(theGame.play())
