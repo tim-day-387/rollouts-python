@@ -4,12 +4,18 @@ import abc
 import time
 import sys
 
-# Right Number of Arguements
+# Right Number of Arguments
 numArgs = len(sys.argv[1:])
 if numArgs < 1:
-    print("Wrong number of arguements.")
+    print("Wrong number of arguments.")
     exit()
 
+# Quite mode?
+if sys.argv[1] == '1':
+    qMode = True
+else:
+    qMode = False
+    
 # Set Seeds
 if numArgs >= 2:
     seed=sys.argv[2]
@@ -87,7 +93,7 @@ class YieldPlayer(Player):
         self.hand.remove(card) # there should be only 1
         
 class Game:  # Main class
-    def __init__(self, players,yieldMode=False,quietMode=False):
+    def __init__(self, players,yieldMode=False,quietMode=qMode):
         self.deck = Deck()
         self.players = players
         self.played_cards = []  # List of already played cards in this hand
