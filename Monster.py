@@ -2,9 +2,20 @@
 import random
 import abc
 import time
+import sys
+
+# Right Number of Arguements
+numArgs = len(sys.argv[1:])
+if numArgs < 1:
+    print("Wrong number of arguements.")
+    exit()
 
 # Set Seeds
-seed=input("type something for set seed, hit enter for random")
+if numArgs >= 2:
+    seed=sys.argv[2]
+else:
+    seed=""
+
 if seed=="":
     random.seed()
 else:
