@@ -4,12 +4,21 @@ import abc
 import time
 import sys
 
+# How Arguments Work
+# python3 Monster.py quiteMode AIplayerType seed
+# quiteMode - 0 or 1
+# AIplayerTyper - 0, 1, 2, or 3 for random, grab and duck, rollouts, MCTS
+# seed - any text, optional
+
 # Right Number of Arguments
 numArgs = len(sys.argv[1:])
-if numArgs < 1:
+if numArgs < 2:
     print("Wrong number of arguments.")
     exit()
 
+# AI selection
+AIselection = sys.argv[2]
+    
 # Quite mode?
 if sys.argv[1] == '1':
     qMode = True
@@ -17,8 +26,8 @@ else:
     qMode = False
     
 # Set Seeds
-if numArgs >= 2:
-    seed=sys.argv[2]
+if numArgs >= 3:
+    seed=sys.argv[3]
 else:
     seed=""
 
@@ -269,7 +278,7 @@ class RandomPlayer(Player):  # Inherit from Player
 
     def playCard(self, trick,game):
         # added the game itself, since the AI needs that, even if it isn't used here.
-        print("-", self.name+"("+str(self.score)+")(Z"+str(self.zombie_count)+")", "sees", trick)
+        # print("-", self.name+"("+str(self.score)+")(Z"+str(self.zombie_count)+")", "sees", trick)
         # comment out for quiet mode
         if len(trick) != 0:
             # Figure out what was led and follow it if we can
@@ -473,10 +482,19 @@ class MctsPlayer(Player):
         while time.process_time() < terminateBy: # loop until time has finished.
             pass # I'm not up for coding this right now
 
-# try at the end?
+# Code for Playing Games
 playahs = []
 playahs.append(GrabAndDuckPlayer("Foo"))
-playahs.append(GrabAndDuckPlayer("AI")) # Change this one for testing different AI
+
+if AIselection == '0':
+    playahs.append(RandomPlayer("AI"))
+elif AIselection == '1':
+    playahs.append(GrabAndDuckPlayer("AI"))
+elif AIselection == '2':
+    playahs.append(RolloutPlayer("AI"))
+else:
+    playahs.append(MctsPlayer("AI"))
+    
 playahs.append(GrabAndDuckPlayer("Bar"))
 theGame = Game(playahs)
 
