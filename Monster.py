@@ -7,7 +7,7 @@ import sys
 # How Arguments Work
 # python3 Monster.py quiteMode AIplayerType seed
 # quiteMode - 0 or 1
-# AIplayerTyper - 0, 1, 2, or 3 for random, grab and duck, rollouts, MCTS
+# AIplayerType - 0, 1, 2, 3, 4 for random, grab and duck, rollouts, MCTS, perform comparison on 20 games each
 # seed - any text, optional
 
 # Right Number of Arguments
@@ -483,19 +483,47 @@ class MctsPlayer(Player):
             pass # I'm not up for coding this right now
 
 # Code for Playing Games
-playahs = []
-playahs.append(GrabAndDuckPlayer("Foo"))
+if AIselection == '5':
+    Games=200
 
-if AIselection == '0':
-    playahs.append(RandomPlayer("AI"))
-elif AIselection == '1':
-    playahs.append(GrabAndDuckPlayer("AI"))
-elif AIselection == '2':
-    playahs.append(RolloutPlayer("AI"))
+    RandomResults=0
+    for i in range(Games):
+        playahs = []
+        playahs.append(GrabAndDuckPlayer("Foo"))
+        playahs.append(RandomPlayer("AI"))
+        playahs.append(GrabAndDuckPlayer("Bar"))
+        theGame = Game(playahs)
+
+        if theGame.play() == 1:
+            RandomResults=RandomResults+1
+
+    GDResults=0
+    for i in range(Games):
+        playahs = []
+        playahs.append(GrabAndDuckPlayer("Foo"))
+        playahs.append(GrabAndDuckPlayer("AI"))
+        playahs.append(GrabAndDuckPlayer("Bar"))
+        theGame = Game(playahs)
+
+        if theGame.play() == 1:
+            GDResults=GDResults+1
+
+    print("Random AI win rate: ", RandomResults/Games)
+    print("Grab And Duck AI win rate: ", GDResults/Games)
 else:
-    playahs.append(MctsPlayer("AI"))
-    
-playahs.append(GrabAndDuckPlayer("Bar"))
-theGame = Game(playahs)
+    playahs = []
+    playahs.append(GrabAndDuckPlayer("Foo"))
 
-print(theGame.play())
+    if AIselection == '0':
+        playahs.append(RandomPlayer("AI"))
+    elif AIselection == '1':
+        playahs.append(GrabAndDuckPlayer("AI"))
+    elif AIselection == '2':
+        playahs.append(RolloutPlayer("AI"))
+    else:
+        playahs.append(MctsPlayer("AI"))
+    
+    playahs.append(GrabAndDuckPlayer("Bar"))
+    theGame = Game(playahs)
+
+    print(theGame.play())
