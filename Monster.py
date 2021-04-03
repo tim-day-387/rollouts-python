@@ -9,6 +9,7 @@ import sys
 # python3 Monster.py quiteMode AIplayerType seed
 # quiteMode - 0 or 1
 # AIplayerType - 0, 1, 2, 3, 4 for random, grab and duck, rollouts, MCTS, perform comparison on 20 games each
+# vsType 0 or 1, 0 for opponents random, 1 for opnents doing grab and duck
 # seed - any text, optional
 
 # Right Number of Arguments
@@ -19,6 +20,8 @@ if numArgs < 2:
 
 # AI selection
 AIselection = sys.argv[2]
+#enemy selection
+vsType = sys.argv[3]
     
 # Quite mode?
 if sys.argv[1] == '1':
@@ -27,8 +30,8 @@ else:
     qMode = False
     
 # Set Seeds
-if numArgs >= 3:
-    seed=sys.argv[3]
+if numArgs >= 4:
+    seed=sys.argv[4]
 else:
     seed=""
 
@@ -529,7 +532,15 @@ class MctsPlayer(Player):
         terminateBy=time.process_time()+1.0 # set a timer for one second.
         while time.process_time() < terminateBy: # loop until time has finished.
             pass # I'm not up for coding this right now
-
+# Select kind of player up against, by defining "EnemyPlayer" to mean one of two classes
+EnemyPlayer=RandomPlayer
+if vsType == '0': 
+    pass #no change here
+elif vsType == '1':
+    EnemyPlayer=GrabAndDuckPlayer
+else:
+    print("Bad player type! Must be 0 or 1")
+    exit()
 # Code for Playing Games
 if AIselection == '5':
     Games=200
@@ -537,9 +548,9 @@ if AIselection == '5':
     RandomResults=0
     for i in range(Games):
         playahs = []
-        playahs.append(GrabAndDuckPlayer("Foo"))
+        playahs.append(EnemyPlayer("Foo"))
         playahs.append(RandomPlayer("AI"))
-        playahs.append(GrabAndDuckPlayer("Bar"))
+        playahs.append(EnemyPlayer("Bar"))
         theGame = Game(playahs)
 
         if theGame.play() == 1:
@@ -548,9 +559,9 @@ if AIselection == '5':
     GDResults=0
     for i in range(Games):
         playahs = []
-        playahs.append(GrabAndDuckPlayer("Foo"))
+        playahs.append(EnemyPlayer("Foo"))
         playahs.append(GrabAndDuckPlayer("AI"))
-        playahs.append(GrabAndDuckPlayer("Bar"))
+        playahs.append(EnemyPlayer("Bar"))
         theGame = Game(playahs)
 
         if theGame.play() == 1:
@@ -559,9 +570,9 @@ if AIselection == '5':
     RResults=0
     for i in range(Games):
         playahs = []
-        playahs.append(GrabAndDuckPlayer("Foo"))
+        playahs.append(EnemyPlayer("Foo"))
         playahs.append(RolloutPlayer("AI"))
-        playahs.append(GrabAndDuckPlayer("Bar"))
+        playahs.append(EnemyPlayer("Bar"))
         theGame = Game(playahs)
 
         if theGame.play() == 1:
@@ -572,7 +583,7 @@ if AIselection == '5':
     print("Rollout AI win rate: ", RResults/Games)
 else:
     playahs = []
-    playahs.append(GrabAndDuckPlayer("Foo"))
+    playahs.append(EnemyPlayer("Foo"))
 
     if AIselection == '0':
         playahs.append(RandomPlayer("AI"))
@@ -583,7 +594,7 @@ else:
     else:
         playahs.append(MctsPlayer("AI"))
     
-    playahs.append(GrabAndDuckPlayer("Bar"))
+    playahs.append(EnemyPlayer("Bar"))
     theGame = Game(playahs)
 
     print(theGame.play())
