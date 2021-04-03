@@ -543,18 +543,18 @@ else:
     exit()
 # Code for Playing Games
 if AIselection == '5':
-    Games=200
+    Games=20 #only says to play 20 games, not 200
 
-    RandomResults=0
+    MctsResults=0
     for i in range(Games):
         playahs = []
         playahs.append(EnemyPlayer("Foo"))
-        playahs.append(RandomPlayer("AI"))
+        playahs.append(MctsPlayer("AI"))
         playahs.append(EnemyPlayer("Bar"))
         theGame = Game(playahs)
 
         if theGame.play() == 1:
-            RandomResults=RandomResults+1
+            MctsResults+=1
 
     GDResults=0
     for i in range(Games):
@@ -565,7 +565,7 @@ if AIselection == '5':
         theGame = Game(playahs)
 
         if theGame.play() == 1:
-            GDResults=GDResults+1
+            GDResults+=1
 
     RResults=0
     for i in range(Games):
@@ -576,11 +576,11 @@ if AIselection == '5':
         theGame = Game(playahs)
 
         if theGame.play() == 1:
-            RResults=RResults+1
+            RResults+=1
             
-    print("Random AI win rate: ", RandomResults/Games)
-    print("Grab And Duck AI win rate: ", GDResults/Games)
-    print("Rollout AI win rate: ", RResults/Games)
+    print("MTCS AI win rate: ", 100*MctsResults/Games,"% or",MctsResults,Games)
+    print("Grab And Duck AI win rate: ", 100*GDResults/Games,"% or",GDResults,Games)
+    print("Rollout AI win rate: ", 100*RResults/Games,"% or",RResults,Games)
 else:
     playahs = []
     playahs.append(EnemyPlayer("Foo"))
@@ -594,7 +594,7 @@ else:
     else:
         playahs.append(MctsPlayer("AI"))
     
-    playahs.append(EnemyPlayer("Bar"))
-    theGame = Game(playahs)
+    playahs.append(EnemyPlayer("Bar")) 
+    theGame = Game(playahs) #potentially make it play more than one?
 
     print(theGame.play())
