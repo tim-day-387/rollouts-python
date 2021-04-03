@@ -471,6 +471,17 @@ class RolloutPlayer(Player):
     def playCard(self, trick,game): # game is only used to make a virtual copy, does not hand look
         terminateBy=time.process_time()+1.0 # set a timer for one second.
         while time.process_time() < terminateBy: # loop until time has finished.
+            card_idx = 0
+            
+            if len(trick) != 0:
+                suit = trick[0][0]
+                card_idx = next((i for i,c in enumerate(self.hand) if c[0]==suit), None)
+
+                if card_idx == None:
+                    card_idx = 0
+
+            return self.hand.pop(card_idx)
+
             pass # I'm not up for coding this right now
         
 class MctsPlayer(Player):
@@ -508,8 +519,20 @@ if AIselection == '5':
         if theGame.play() == 1:
             GDResults=GDResults+1
 
+    RResults=0
+    for i in range(Games):
+        playahs = []
+        playahs.append(GrabAndDuckPlayer("Foo"))
+        playahs.append(RolloutPlayer("AI"))
+        playahs.append(GrabAndDuckPlayer("Bar"))
+        theGame = Game(playahs)
+
+        if theGame.play() == 1:
+            RResults=RResults+1
+            
     print("Random AI win rate: ", RandomResults/Games)
     print("Grab And Duck AI win rate: ", GDResults/Games)
+    print("Rollout AI win rate: ", RResults/Games)
 else:
     playahs = []
     playahs.append(GrabAndDuckPlayer("Foo"))
