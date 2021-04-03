@@ -3,6 +3,7 @@ import random
 import abc
 import time
 import sys
+import math as m #for MCTS
 # from fractions import Fraction as fr #maybe it will be useful later.
 
 # How Arguments Work
@@ -569,13 +570,140 @@ class RolloutPlayer(Player):
                         
 
 class MctsPlayer(Player):
-    def __init__(self, name):
+    def __init__(self, name,question6=False):
         super().__init__(name)
+        if question6 == False: #if not using a time alocator
+            self.allocator = False  #save that we're not using one
+        else:
+            self.allocator = TimeAllocator(18,priorityMul=1.1) #priority mul says how much more time it should get than "fair" in worst case, so it muls over first moves more.
+        self.explore=800 #the explore parameter, it's 800 since a win is +200, and a loss is -200, rather than a win being 1 and a loss being 0. Might be the wrong call.
+        self.barfMode=True #do I go print out where the deepest node with 10 observations is, or keep quiet?
+    #helpers
+    def ucb(self,totalScore,parentSimulations,thisSimulation):
+        mean=totalScore/thisSimulation
+        return mean+self.explore*m.sqrt(m.log(parentSimulations)/thisSimulation)
+    def joinToTrick(self,optionsList,currentTrick): #makes the list of cards into a list of tuples of the trick after you play it.
+        ret=[]
+        for card in optionsList:
+            ret.append(tuple(currentTrick)+tuple(card))
+        return ret
+    
+    def chooseCard(self,optionList,currentTrick,remainingTree,parentSim): 
+        #Takes the list of options, the tree from that point on (if it exists), and returns the card to pick and the trick after us (for records) (and adds to the tree)
+        options=self.joinToTrick(optionList,currentTrick) #this way, it can see if it is on the tree, and if not, how.
+        if len(options)==1: #if there's only one option, skip all this and jump right to the adding to tree and returning.
+            choice=0
+        else: #otherwise, you have to actually make a choice.
+            #first, try to see if there's an unexplored option
+            choice=-1
+            for i in range(len(options)):
+                if options[i] not in remainingTree: #if it's not in the tree, then it's new.
+                    choice=i
+                    break
+            if choice ==-1: #if we didn't update our choice, then it means all of the choices have been expanded at least once. Find which to do.
+                bestUCB=-m.inf #set the best we've seen to negative infinity, so that it's guarenteed to update at least once.
+                for i in range(len(options)):
+                    temp=remainingTree[options[i]] #doesn't error because we already checked that all of these are in the keys
+                    thisUCB=self.ucb(temp[1],parentSim,temp[0]) #compute the UCB for the option, getting its score, the parent simulations, then its simulations.
+                    if thisUCB > bestUCB: #is this better than the last one we saw?
+                        bestUCB=thisUCB
+                        choice=i #save the choice the best UCB seen
+        #Now, we have the choice set. 
+        futureTrick=options[choice] #save what the trick looks like
+        if futureTrick in remainingTree: #if we've done this before, add 1 to the number of times we've been here.
+            remainingTree[futureTrick][0]+=1
+        else: #otherwise, add it here. 
+            remainingTree[futureTrick]=[0,0,{}] #the empty dictionary is so that we know we've not explored any children.
+        return (futureTrick[-1],futureTrick) #the -1 shows the last entry in the trick, and hence, the card to play
+    
+    def treeSeek(self, tree,threshold=10): #recursive method that finds where the deepest the tree is.
+        if len(tree)==0: #if there's no deeper nodes, then it can at best be the level above.
+            return -1
+        deepest=-1 #assume this tree has no observations of more than threshold.
+        for leaf in tree:
+            if leaf[0] < threshold: #if there aren't threshold observations of this node, there can't be less
+                continue
+            #otherwise, look deeper.
+            fromThisLeaf= 1+ self.treeSeek(leaf[-1],threshold) #the last entry is the subtree from here. If that one is -1, then this was the last with above, so 0 depth.
+            if fromThisLeaf > deepest:
+                deepest=fromThisLeaf
+        #Now we know the furthest it goes.
+        return deepest
+    
+    def treeUpdate(self,tree,result,path): #adds result to the advantage from the root down the tree.
+        myTree=tree #don't mess with the actual tree, just being careful.
+        for entry in path:
+            myTree[entry][1]+=result #add this result to the total
+            myTree=myTree.get(entry,[0,0,{}])[2] #move a layer deeper in the tree. On last step, will still give something, so this doesn't error, hopefully.
+            
 
     def playCard(self, trick,game): # game is only used to make a virtual copy, does not hand look
-        terminateBy=time.process_time()+1.0 # set a timer for one second.
+        if self.allocator==False: #if we're not using the question 6 allocator,
+            terminateBy=time.process_time()+1.0 # set a timer for one second.
+        else:
+            if len(self.hand)==18: #if our hand is full
+                self.allocator.reset() #reset our time allocator.
+            startAt=time.process_time()
+            terminateBy=startAt+18.0 #this is a temporary value, is corrected once we know how many cards are legal.
+            
+        tree={} # dictonary that stores each playable card as a key, and as values: the total number of simulations of this node, then the "advantage" as calculated last time, 
+        #then a dict with the move information as keys, and same structure inside. the first "move" is the shuffle of Alice and Bob's hands,
+        #but after that, all the moves are the state of the trick right after you play a card.
         while time.process_time() < terminateBy: # loop until time has finished.
-            pass # I'm not up for coding this right now
+            moves=[] #needed, to update the tree at the end of the hand.
+            myTree=tree #this moves in one level at a time, as we go.
+            temp = makeVirtualGameCopy(game,trick) #now we need to keep the imagined hands of alice and bob
+            gameGen = temp[0] #Get the game generator object.
+            move1=(temp[1],temp[2]) #save Alice and bob's hands.
+            del temp #get rid of temporary object. may remove if it causes problems
+            #get the initial list of cards.
+            initial=next(gameGen)[2] #just get the cards we can play.
+            if len(tree)==0 and self.allocator!=False: #if we need to set allocation, do it now.
+                terminateBy=startAt+self.allocator.getAllowedTime(len(self.hand),len(initial)) #set up the real terminate time
+                if time.process_time() > terminateBy: #if we actually ran out of time, just return the first card.
+                    return initial[0]
+            #now, make my first move.
+            #TODO, make the move, and save it in the tree and and moves list. We also set "output" to whatever happens after that card.
+            #now add the "move1" to myTree, the moves list, and update myTree.
+            moves.append(move1) #save what their hands are.
+            if move1 in myTree:
+                myTree=myTree[move1][2] #we've seen this shuffle before! Let's see what we've done before!
+            else: 
+                myTree[move1]=[0,0,{}] #otherwise, we're in a new place.
+                myTree=myTree[move1][2] #now we go into that dictonary we made.
+            #then, play the hand out.
+            while time.process_time() < terminateBy: #will break out if the hand is over before then.
+                if output[0]==True: #if we are told the game is over...
+                    if output[1]==True: #if someone won the game...
+                        if output[2]==1: #is it us?
+                            adv=200 #if it is us, add 200 points to advantage!
+                        else:
+                            adv=-200 #If someone else won, we lost, so remove 200 points
+                    else: #do advantage computation
+                        adv=output[4] - max(output[3],output[5]) #take our score, and subtract the larger of the other players.
+                    #then add it to the total advantage for the chain
+                    self.treeUpdate(tree,adv,moves)
+                    #finally, break.
+                    break
+                #otherwise, we're being asked to play a card.
+                if output[1]==1: #is it one of our cards?
+                    pass #TODO: Implement the adding to path and moving "myTree" in deeper, like our actual game logic.
+                else:
+                    card=output[2][0] #othewise, just play the first legal card in that player's hand.
+                #finally, send that card in and collect the new output.
+                output = gameGen.send(card)
+            #now, the hand has come to an end.
+            #unsure if we have to do any cleanup here.
+        #okay, so we've collected as much data as we can in one second. Now comes decision time.
+        #TODO, make my decision
+        
+        #if we are using an allocator, we need to update it with how much time was spent
+        if self.allocator != False:
+            self.allocator.removeSpent(time.process_time()-startAt)
+            
+        return #return the card we decided on
+
+        
 # Select kind of player up against, by defining "EnemyPlayer" to mean one of two classes
 EnemyPlayer=RandomPlayer
 if vsType == '0': 
