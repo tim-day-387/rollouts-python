@@ -3,6 +3,7 @@ import random
 import abc
 import time
 import sys
+# from fractions import Fraction as fr #maybe it will be useful later.
 
 # How Arguments Work
 # python3 Monster.py quiteMode AIplayerType seed
@@ -13,7 +14,7 @@ import sys
 # Right Number of Arguments
 numArgs = len(sys.argv[1:])
 if numArgs < 2:
-    print("Wrong number of arguments.")
+    print("Wrong number of arguments.") #maybe make it so this lets you input it on run time instead of quitting? Would be useful for running in IDLE
     exit()
 
 # AI selection
@@ -198,7 +199,7 @@ class Game:  # Main class
                     self.players[p_idx].removeCard(chosenCard)
                     # make sure that this card is not in the hand for later
                     trick.append(chosenCard)
-                else: # if not using yeild players, just ask them directly
+                else: # if not using yield players, just ask them directly
                     trick.append(self.players[p_idx].playCard(trick,self))
                     # yes, we send the whole game over
             self.slp(self.players[leader].name, "led:", trick)
@@ -470,20 +471,56 @@ class RolloutPlayer(Player):
 
     def playCard(self, trick,game): # game is only used to make a virtual copy, does not hand look
         terminateBy=time.process_time()+1.0 # set a timer for one second.
+        legalCards=[] #on the first rollout, find what cards in the hand are legal, which are in lists of "number of times, total advantage"
+        #if there is only one legal move, just play it and avoid computing. Advantage is me-first place, or if I am in first, me-second place. 
+        #Set to +200 if I win on the hand, set to -200 if I lose on the hand, as winning or losing on the spot is way more important than next round.
+        tryThis=0 #which index in the list should we start with this time?
         while time.process_time() < terminateBy: # loop until time has finished.
-            card_idx = 0
-            
-            if len(trick) != 0:
-                suit = trick[0][0]
-                card_idx = next((i for i,c in enumerate(self.hand) if c[0]==suit), None)
+            temp = makeVirtualGameCopy(game,trick) #Note, this also returns the imagined hands of Alice and Bob, but we can get rid of those
+            gameGen = temp[0] #Get the game generator object.
+            del temp #get rid of temporary object. may remove if it causes problems
+            if len(legalCards)==0: #if we don't know what cards are legal, find out.
+                temp=next(gameGen) #get the first return from the game generator, which gives a lot more than just our hand
+                if len(temp[2])==1: #if there's only one legal card, no point in doing anything else.
+                    return temp[2][0] #temp[2] is the legal card list, so get the only element and return
+                #otherwise, format the legal card list.
+                for card in temp[2]: #for each card...
+                    legalCards.append([card,0,0]) #add the card, and that it has been tried zero times, and has had advantage of zero
+                del temp
+            else: #if we already know what cards are legal, just run the "next" without looking at the output.
+                next(gameGen) #get it ready to accept the card.
+            #Now that I know Legal Cards is full, we can try the card at index tryThis.
+            output=gameGen.send(legalCards[tryThis][0]) #send card tryThis and collect the output.
+            legalCards[tryThis][1]+=1 #increment how many times this was tried
+            #then, play the hand out.
+            while time.process_time() < terminateBy: #will break out if the hand is over before then.
+                if output[0]==True: #if we are told the game is over...
+                    if output[1]==True: #if someone won the game...
+                        if output[2]==1: #is it us?
+                            legalCards[tryThis][2]+=200 #if it is us, add 200 points to advantage!
+                        else:
+                            legalCards[tryThis][2]-=200 #If someone else won, we lost, so remove 200 points
+                        #in either case, the game is over
+                        break
+                    #otherwise, we need to look at points scored.
+                    adv=output[4] - max(output[3],output[5]) #take our score, and subtract the larger of the other players.
+                    #then add it to the total advantage for this card.
+                    legalCards[tryThis][2]+=adv
+                    #finally, break.
+                    break
+                #otherwise, we're being asked to play a card.
+                card=output[2][0] #This one picks the first legal card in the hand of whoever's turn it is. Mcts will have to care whose turn it is, but I don't.
+                #also if you simulated everyone with grab and duck, they would need to know the trick from this output. but we don't have to.
+                #finally, send that card in and collect the new output.
+                output = gameGen.send(card)
+            #now, the hand has come to an end.
+            tryThis=(tryThis+1)%len(legalCards) #move to trying the next card in sequence, or back to the start.
+        #okay, so we've collected as much data as we can in one second. Now comes decision time.
+        legalCards.sort(key=lambda entry: entry[2]/entry[1]) #assume each one has been tried at least once, or this will set on fire.
+        #space to allow for debug printing, if needed.
+        return legalCards[-1][0] #return the card at the end of the legal cards list, and strip off how much it was tried.
+                        
 
-                if card_idx == None:
-                    card_idx = 0
-
-            return self.hand.pop(card_idx)
-
-            pass # I'm not up for coding this right now
-        
 class MctsPlayer(Player):
     def __init__(self, name):
         super().__init__(name)
