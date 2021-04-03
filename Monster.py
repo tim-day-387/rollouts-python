@@ -466,14 +466,47 @@ def makeVirtualGameCopy(currGame,thisTrick):
     gen = newGame.playHand(leader=lead,trick=thisTrick.copy()) # we copy the trick just in case
     return (gen,aliceHand,bobHand)
 
-
+#For question 6, a time allocator as our (mandated) "extra credit"
+class TimeAllocator:
+    def __init__(self,initialTime,priorityMul=1.0):
+        self.iniTime=initialTime
+        self.curTime=initialTime
+        self.prio=priorityMul
+    def reset(self):
+        self.curTime=self.iniTime
+    def getAllowedTime(self,handSize,legalSize): #How much time should I be allowed? Legal Size is how many legal cards there are.
+        if handSize==2: #if there's only 2 cards in hand, just give all the hand.
+            return self.curTime
+        if self.curTime <= 0.0 : #if we have no time left
+            return 0
+        #otherwise, we need to compute the ratio
+        ratio=(handSize*legalSize)/(handSize*(legalSize+(handSize-1)*(2*handSize-1)/6)-1) #how much time should this get, vs how many are left, in the worst case? 
+        #explanation in the writeup
+        if ratio*self.prio >= 0.99: #if we'd give almost all the time
+            pass #ignore the priority
+        else:
+            ratio*=self.prio #otherwise, apply it.
+        return self.curTime*ratio
+    def removeSpent(self,spentTime):
+        self.curTime-=spentTime
 
 class RolloutPlayer(Player):
-    def __init__(self, name):
+    def __init__(self, name,question6=False):
         super().__init__(name)
+        if question6 == False: #if not using a time alocator
+            self.allocator = False  #save that we're not using one
+        else:
+            self.allocator = TimeAllocator(18,priorityMul=1.1) #priority mul says how much more time it should get than "fair" in worst case, so it muls over first moves more.
 
     def playCard(self, trick,game): # game is only used to make a virtual copy, does not hand look
-        terminateBy=time.process_time()+1.0 # set a timer for one second.
+        if self.allocator==False: #if we're not using the question 6 allocator,
+            terminateBy=time.process_time()+1.0 # set a timer for one second.
+        else:
+            if len(self.hand)==18: #if our hand is full
+                self.allocator.reset() #reset our time allocator.
+            startAt=time.process_time()
+            terminateBy=startAt+18.0 #this is a temporary value, is corrected once we know how many cards are legal.
+            
         legalCards=[] #on the first rollout, find what cards in the hand are legal, which are in lists of "number of times, total advantage"
         #if there is only one legal move, just play it and avoid computing. Advantage is me-first place, or if I am in first, me-second place. 
         #Set to +200 if I win on the hand, set to -200 if I lose on the hand, as winning or losing on the spot is way more important than next round.
@@ -490,6 +523,13 @@ class RolloutPlayer(Player):
                 for card in temp[2]: #for each card...
                     legalCards.append([card,0,0]) #add the card, and that it has been tried zero times, and has had advantage of zero
                 del temp
+                
+                #then, see if we need to update how much time we're allowed.
+                if self.allocator!=False: #that is, we have an allocator
+                    terminateBy=startAt+self.allocator.getAllowedTime(len(self.hand),len(legalCards)) #set up the real terminate time
+                    if time.process_time() > terminateBy: #if we actually ran out of time, just return the first card.
+                        return legalCards[0][0]
+                    
             else: #if we already know what cards are legal, just run the "next" without looking at the output.
                 next(gameGen) #get it ready to accept the card.
             #Now that I know Legal Cards is full, we can try the card at index tryThis.
@@ -520,7 +560,11 @@ class RolloutPlayer(Player):
             tryThis=(tryThis+1)%len(legalCards) #move to trying the next card in sequence, or back to the start.
         #okay, so we've collected as much data as we can in one second. Now comes decision time.
         legalCards.sort(key=lambda entry: entry[2]/entry[1]) #assume each one has been tried at least once, or this will set on fire.
-        #space to allow for debug printing, if needed.
+        
+        #if we are using an allocator, we need to update it with how much time was spent
+        if self.allocator != False:
+            self.allocator.removeSpent(time.process_time()-startAt)
+            
         return legalCards[-1][0] #return the card at the end of the legal cards list, and strip off how much it was tried.
                         
 
