@@ -472,13 +472,6 @@ class RolloutPlayer(Player):
         terminateBy=time.process_time()+1.0 # set a timer for one second.
         while time.process_time() < terminateBy: # loop until time has finished.
             pass # I'm not up for coding this right now
-
-# Card Picking Methods
-# Picks a card according to the Random algo
-def randomPick():
-
-# Picks a card according to the Grab and Duck algo
-def gdPick():
         
 class MctsPlayer(Player):
     def __init__(self, name):
