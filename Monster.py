@@ -267,7 +267,7 @@ class Game:  # Main class
             except StopIteration:
                 print("Didn't stop successfully.")
             if result[1]==True: # if the hand had someone win,
-                return result[2] # then we're done.
+                return (self.players[result[2]].name,self.players[0].score,self.players[1].score,self.players[2].score) #return who won, then everyone's score.
             # otherwise...
             self.slp("\n* Deal a new hand! *\n")
             # reset the zombie count
@@ -786,9 +786,9 @@ if AIselection == '5':
         if theGame.play() == 1:
             RResults+=1
             
-    print("MTCS AI win rate: ", 100*MctsResults/Games,"% or",MctsResults,Games)
-    print("Grab And Duck AI win rate: ", 100*GDResults/Games,"% or",GDResults,Games)
-    print("Rollout AI win rate: ", 100*RResults/Games,"% or",RResults,Games)
+    print("MTCS AI win rate: ", 100*MctsResults/Games,"% or",MctsResults,"over",Games)
+    print("Grab And Duck AI win rate: ", 100*GDResults/Games,"% or",GDResults,"over",Games)
+    print("Rollout AI win rate: ", 100*RResults/Games,"% or",RResults,"over",Games)
 else:
     playahs = []
     playahs.append(EnemyPlayer("Foo"))
