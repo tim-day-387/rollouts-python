@@ -6,6 +6,7 @@ import sys
 import math as m #for MCTS
 # from fractions import Fraction as fr #maybe it will be useful later.
 
+TIME_GIVEN=1.0 #makes it easier to change the time amount
 # How Arguments Work
 # python3 Monster.py quiteMode AIplayerType seed
 # quiteMode - 0 or 1
@@ -501,7 +502,7 @@ class RolloutPlayer(Player):
 
     def playCard(self, trick,game): # game is only used to make a virtual copy, does not hand look
         if self.allocator==False: #if we're not using the question 6 allocator,
-            terminateBy=time.process_time()+1.0 # set a timer for one second.
+            terminateBy=time.process_time()+TIME_GIVEN # set a timer for one TIME GIVEN
         else:
             if len(self.hand)==18: #if our hand is full
                 self.allocator.reset() #reset our time allocator.
@@ -644,7 +645,7 @@ class MctsPlayer(Player):
         if len(self.hand)==1:
             return self.hand.pop()
         if self.allocator==False: #if we're not using the question 6 allocator,
-            terminateBy=time.process_time()+1.0 # set a timer for one second.
+            terminateBy=time.process_time()+TIME_GIVEN # set a timer for one TIME GIVEN
         else:
             if len(self.hand)==18: #if our hand is full
                 self.allocator.reset() #reset our time allocator.
