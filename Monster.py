@@ -762,7 +762,7 @@ if AIselection == '5':
         playahs.append(EnemyPlayer("Bar"))
         theGame = Game(playahs)
 
-        if theGame.play() == 1:
+        if theGame.play()[0] == "AI":
             MctsResults+=1
 
     GDResults=0
@@ -773,7 +773,7 @@ if AIselection == '5':
         playahs.append(EnemyPlayer("Bar"))
         theGame = Game(playahs)
 
-        if theGame.play() == 1:
+        if theGame.play()[0] == "AI":
             GDResults+=1
 
     RResults=0
@@ -784,7 +784,7 @@ if AIselection == '5':
         playahs.append(EnemyPlayer("Bar"))
         theGame = Game(playahs)
 
-        if theGame.play() == 1:
+        if theGame.play()[0] == "AI":
             RResults+=1
             
     print("MTCS AI win rate: ", 100*MctsResults/Games,"% or",MctsResults,"over",Games)
