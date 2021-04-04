@@ -733,9 +733,9 @@ class MctsPlayer(Player):
         if self.barfMode==True:
             print("hand size:",len(self.hand),"deepest with at least 10 simulations,", end=" ") #make it so it's on one line
             if rootSimulations < 10:
-                print("none, only",rootSimulations,"total. Level -1")
+                print("none, only",rootSimulations,"total. Level -2")
             else:
-                print("level:", self.treeSeek(tree))
+                print("level:", self.treeSeek(tree)-1) #the depth level needs to be subtracted by 1 to make is to looking 0 tricks ahead is level 0
         #remove that card from our hand.
         self.hand.remove(endCard)
         return endCard#return the card we decided on
