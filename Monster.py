@@ -678,9 +678,9 @@ class MctsPlayer(Player):
             #now, make my first move.
             #make the move, and save it in the tree and and moves list. We also set "output" to whatever happens after that card.
             move0=self.chooseCard(initial,[],myTree,rootSimulations) #since this is the root, we add nothing to the cards. Also, adds the move to the tree for us
-            moves.append(move0[0]) #get the card itself, rather than it in a tuple, as it is different here than normal
-            myTree=myTree[move0[0]][2] #move down the tree
-            output=gameGen.send(move0[0])
+            moves.append(move0) #get the card itself, rather than it in a tuple, as it is different here than normal
+            myTree=myTree[move0][2] #move down the tree
+            output=gameGen.send(move0)
             #now add the "move1" to myTree, the moves list, and update myTree.
             moves.append(move1) #save what their hands are.
             if move1 in myTree:
