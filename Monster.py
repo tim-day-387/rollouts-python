@@ -105,6 +105,8 @@ class YieldPlayer(Player):
 
     # special function only used by this class.
     def removeCard(self,card):
+        if card not in self.hand:
+            print("Err!",card,"not in",self.hand)
         self.hand.remove(card) # there should be only 1
         
 class Game:  # Main class
@@ -154,13 +156,13 @@ class Game:  # Main class
         # Deal the hands.
         for pIndex in range(3):
             if pIndex == len(currentTrick): # if this is our known hand,
-                self.players[pIndex].hand=knownHand.copy()
+                self.players[1].hand=knownHand.copy() #player 2 always gets it
                 # then give that player the known hand and keep going.
                 continue # we copy to make sure it doesn't mess with something it's not supposed to
             playerHand=[] # otherwise, get ready to fill a hand, then give it to them
             while len(playerHand) < handSizes[pIndex]:
                 playerHand.append(self.deck.getCard())
-            self.players[pIndex].hand=playerHand.copy() # make it a copy just in case
+            self.players[(pIndex-len(currentTrick)+4)%3].hand=playerHand.copy() # make it a copy just in case. The shift is so that it will deal the leader of the current trick first, always.
 
     def scoreTrick(self, trick):
         # Score the trick and add the score to the winning player
@@ -188,9 +190,10 @@ class Game:  # Main class
     def playHand(self,leader=0,trick=[]):
         # splitting off the playing a hand code from the rest.
         # Trick is given here so starting mid trick is possible
-        while len(self.players[0].hand) > 0: # while players have a card in hand.
+        while len(self.players[(leader+len(trick))%3].hand) > 0: # while the next player to play can play
             # Form the trick, get a card from each player. Score the trick.
-            for i in range(len(trick),len(self.players)):
+            startAt=len(trick) #make sure the fact the length of the trick changing is not the problem
+            for i in range(startAt,len(self.players)):
                 # for every loop after the first, this is the same as the old code
                 p_idx = (leader + i) % len(self.players)
                 if self.yieldM: # if in yield mode...
@@ -263,8 +266,9 @@ class Game:  # Main class
         lead_player = 0
         while True:  # Keep looping on hands until we have a winner
             self.deal()
+            thisHand=self.playHand(leader=lead_player) #make  new generator each loop.
             try: # have to do it this way since its a generator now
-                result=next(self.playHand(leader=lead_player))
+                result=next(thisHand) 
             except StopIteration:
                 print("Didn't stop successfully.")
             if result[1]==True: # if the hand had someone win,
@@ -276,7 +280,7 @@ class Game:  # Main class
                 p.zombie_count = 0
             # reset the played cards so they represet this hand
             self.played_cards=[]
-            lead_player=result[2] # get the winner of the last hand
+            lead_player=result[2] # get the leader of the last hand
             
 class RandomPlayer(Player):  # Inherit from Player
     def __init__(self, name):
@@ -458,12 +462,14 @@ def makeVirtualGameCopy(currGame,thisTrick):
     # deal the cards
     newGame.dealSpecial(myHand,playedCards,thisTrick)
     # Randomly deal the unknown cards, while keeping the known cards with me.
+    #for i in range(3):
+    #    print("player",i,"'s hand:",newGame.players[i].hand)
     # save alice and bob's starting hands
     aliceHand=frozenset(newGame.players[0].hand)
     bobHand=frozenset(newGame.players[2].hand)
     # figure out the leader
-    lead=2-len(thisTrick)
-    # if the currentTrick is empty, we are the leader. if there are two cards, bob must have lead.
+    lead=(4-len(thisTrick))%3
+    # if the currentTrick is empty, we (1) are the leader. if there are two cards, bob must have lead.
     # create the generator
     gen = newGame.playHand(leader=lead,trick=thisTrick.copy()) # we copy the trick just in case
     return (gen,aliceHand,bobHand)
@@ -501,6 +507,8 @@ class RolloutPlayer(Player):
             self.allocator = TimeAllocator(18,priorityMul=1.1) #priority mul says how much more time it should get than "fair" in worst case, so it muls over first moves more.
 
     def playCard(self, trick,game): # game is only used to make a virtual copy, does not hand look
+        if len(self.hand)==0: #check if I'm being asked to play when I can't.
+            raise Exception("My hand is empty, why are you asking for a card?")
         if self.allocator==False: #if we're not using the question 6 allocator,
             terminateBy=time.process_time()+TIME_GIVEN # set a timer for one TIME GIVEN
         else:
@@ -519,6 +527,8 @@ class RolloutPlayer(Player):
             del temp #get rid of temporary object. may remove if it causes problems
             if len(legalCards)==0: #if we don't know what cards are legal, find out.
                 temp=next(gameGen) #get the first return from the game generator, which gives a lot more than just our hand
+                if type(temp[2])==type(1): #if the next thing will throw an exception...
+                    raise TypeError("Something is wrong with my first return!"+str(temp)) #this doesn't seem to happen, but it might
                 if len(temp[2])==1: #if there's only one legal card, no point in doing anything else.
                     self.hand.remove(temp[2][0]) #make sure to actually remove the card.
                     return temp[2][0] #temp[2] is the legal card list, so get the only element and return
@@ -588,7 +598,9 @@ class MctsPlayer(Player):
     def joinToTrick(self,optionsList,currentTrick): #makes the list of cards into a list of tuples of the trick after you play it.
         ret=[]
         for card in optionsList:
-            ret.append(tuple(currentTrick)+tuple(card))
+            trickCopy=currentTrick.copy()
+            trickCopy.append(card)
+            ret.append(tuple(trickCopy))
         return ret
     
     def chooseCard(self,optionList,currentTrick,remainingTree,parentSim): 
@@ -624,10 +636,10 @@ class MctsPlayer(Player):
             return -1
         deepest=-1 #assume this tree has no observations of more than threshold.
         for leaf in tree:
-            if leaf[0] < threshold: #if there aren't threshold observations of this node, there can't be less
+            if tree[leaf][0] < threshold: #if there aren't threshold observations of this node, there can't be less
                 continue
             #otherwise, look deeper.
-            fromThisLeaf= 1+ self.treeSeek(leaf[-1],threshold) #the last entry is the subtree from here. If that one is -1, then this was the last with above, so 0 depth.
+            fromThisLeaf= 1+ self.treeSeek(tree[leaf][-1],threshold) #the last entry is the subtree from here. If that one is -1, then this was the last with above, so 0 depth.
             if fromThisLeaf > deepest:
                 deepest=fromThisLeaf
         #Now we know the furthest it goes.
@@ -655,6 +667,7 @@ class MctsPlayer(Player):
         tree={} # dictonary that stores each playable card as a key, and as values: the total number of simulations of this node, then the "advantage" as calculated last time, 
         #then a dict with the move information as keys, and same structure inside. the first "move" is the shuffle of Alice and Bob's hands,
         #but after that, all the moves are the state of the trick right after you play a card.
+        #NOTE: due to jank, the first level of the tree are tuples as well, just with 1 element.
         rootSimulations=0 #how many times have you simulated the root of the tree?
         while time.process_time() < terminateBy: # loop until time has finished.
             moves=[] #needed, to update the tree at the end of the hand.
@@ -665,7 +678,9 @@ class MctsPlayer(Player):
             move1=(temp[1],temp[2]) #save Alice and bob's hands.
             del temp #get rid of temporary object. may remove if it causes problems
             #get the initial list of cards.
-            initial=next(gameGen)[2] #get the cards only for this round
+            output=next(gameGen) #look at everything
+            initial=output[2]
+            #print(output) #what cards do you see?
             if len(tree)==0: #check for first round stuff
                 if len(initial)==1: #if there's only one legal card...
                     self.hand.remove(initial[0]) #remember to remove from hand before playing
@@ -680,7 +695,7 @@ class MctsPlayer(Player):
             move0=self.chooseCard(initial,[],myTree,rootSimulations) #since this is the root, we add nothing to the cards. Also, adds the move to the tree for us
             moves.append(move0) #get the card itself, rather than it in a tuple, as it is different here than normal
             myTree=myTree[move0][2] #move down the tree
-            output=gameGen.send(move0)
+            output=gameGen.send(move0[0])#get the card itself, rather than it in a tuple, as it is different here than normal
             #now add the "move1" to myTree, the moves list, and update myTree.
             moves.append(move1) #save what their hands are.
             if move1 in myTree:
@@ -725,7 +740,7 @@ class MctsPlayer(Player):
         for card in iter(tree): #go through each card in the first level of the dictionary
             if tree[card][0] > mostSeenAmount: #if this card has been seen the most times so far
                 mostSeenAmount=tree[card][0]
-                endCard=card #save our most tested card.
+                endCard=card[0] #save our most tested card.
         #if we are using an allocator, we need to update it with how much time was spent
         if self.allocator != False:
             self.allocator.removeSpent(time.process_time()-startAt)
@@ -737,6 +752,7 @@ class MctsPlayer(Player):
             else:
                 print("level:", self.treeSeek(tree)-1) #the depth level needs to be subtracted by 1 to make is to looking 0 tricks ahead is level 0
         #remove that card from our hand.
+        #print(endCard,self.hand,tree.keys())
         self.hand.remove(endCard)
         return endCard#return the card we decided on
 
